@@ -38,10 +38,11 @@ class FraudRequest(BaseModel):
 
 @app.get("/")
 def home():
-    return {"status": "Agent is running"}
+    return {"status": "FundGuide Agent is running"}
 
 @app.post("/check-fraud")
 def check_fraud(request: FraudRequest):
+    # type=0 means TRANSFER (fixed from 1)
     features = [[0, request.amount, request.oldbalanceOrg, request.newbalanceOrig, request.oldbalanceDest, request.newbalanceDest]]
     prediction = fraud_model.predict(features)[0]
     probability = fraud_model.predict_proba(features)[0][1] 
@@ -55,7 +56,7 @@ def check_fraud(request: FraudRequest):
 async def chat(request: ChatRequest):
     message_lower = request.message.lower()
 
-    # 0. Handle general rate questions (NEW)
+    # 0. Handle general rate questions
     if "rate" in message_lower or "conversion" in message_lower:
         rate_info = get_live_usd_to_bdt()
         return ChatResponse(
@@ -82,6 +83,7 @@ async def chat(request: ChatRequest):
             amount = float(numbers[0])
             balance = float(numbers[1])
             
+            # type=0 means TRANSFER (fixed from 1)
             features = [[0, amount, balance, balance - amount, 0, amount]]
             prediction = fraud_model.predict(features)[0]
             prob = fraud_model.predict_proba(features)[0][1]
@@ -109,21 +111,25 @@ async def chat(request: ChatRequest):
         
         prompt = f"""
 You are a helpful remittance assistant for Bangladesh.
-User message: "{request.message}"
+The user sent this exact message: "{request.message}"
 
 Here is the exact math and data calculated by our Python engine:
 {json.dumps(calc_data, indent=2)}
 
-CRITICAL INSTRUCTIONS:
-1. Adapt to the user's language (English, Bangla, or Banglish).
-2. Explain WHY the recommended provider is best using the data.
-3. You MUST mention the "family_impact" (how much more money the family gets).
-4. Mention the delivery speed of the recommended provider (e.g., "Wise takes 1-2 days").
-5. Do not invent any numbers. Only use the numbers provided above.
+CRITICAL LANGUAGE INSTRUCTION:
+- If the user's message is in English, reply in English.
+- If the user's message uses Bengali script (বাংলা), reply in Bengali script.
+- If the user's message uses Banglish (e.g., "Ami 500 dollar pathabo"), you MUST reply in Banglish.
+
+CRITICAL CONTENT INSTRUCTIONS:
+1. Explain WHY the recommended provider is best using the data.
+2. You MUST mention the "family_impact" (how much more money the family gets).
+3. Mention the delivery speed of the recommended provider (e.g., "Wise takes 1-2 days").
+4. Do not invent any numbers. Only use the numbers provided above.
 """
     else:
         prompt = f"""
-You are RemitWise AI, a helpful and polite financial assistant for Bangladesh.
+You are FundGuide AI, a helpful and polite financial assistant for Bangladesh.
 You ONLY answer questions related to money transfers, remittances, exchange rates, and financial decisions. 
 If the user asks about anything else, politely redirect them back to remittance advice.
 User message: "{request.message}"
