@@ -18,7 +18,7 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 # Load the fraud model
 fraud_model = joblib.load("fraud_model.pkl")
 
-app = FastAPI(title="RemitWise AI API")
+app = FastAPI(title="FundGuide AI API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 class ChatRequest(BaseModel):
@@ -42,7 +42,7 @@ def home():
 
 @app.post("/check-fraud")
 def check_fraud(request: FraudRequest):
-    features = [[1, request.amount, request.oldbalanceOrg, request.newbalanceOrig, request.oldbalanceDest, request.newbalanceDest]]
+    features = [[0, request.amount, request.oldbalanceOrg, request.newbalanceOrig, request.oldbalanceDest, request.newbalanceDest]]
     prediction = fraud_model.predict(features)[0]
     probability = fraud_model.predict_proba(features)[0][1] 
     
@@ -82,7 +82,7 @@ async def chat(request: ChatRequest):
             amount = float(numbers[0])
             balance = float(numbers[1])
             
-            features = [[1, amount, balance, balance - amount, 0, amount]]
+            features = [[0, amount, balance, balance - amount, 0, amount]]
             prediction = fraud_model.predict(features)[0]
             prob = fraud_model.predict_proba(features)[0][1]
             
