@@ -42,7 +42,6 @@ def home():
 
 @app.post("/check-fraud")
 def check_fraud(request: FraudRequest):
-    # type=0 means TRANSFER (fixed from 1)
     features = [[0, request.amount, request.oldbalanceOrg, request.newbalanceOrig, request.oldbalanceDest, request.newbalanceDest]]
     prediction = fraud_model.predict(features)[0]
     probability = fraud_model.predict_proba(features)[0][1] 
@@ -83,7 +82,6 @@ async def chat(request: ChatRequest):
             amount = float(numbers[0])
             balance = float(numbers[1])
             
-            # type=0 means TRANSFER (fixed from 1)
             features = [[0, amount, balance, balance - amount, 0, amount]]
             prediction = fraud_model.predict(features)[0]
             prob = fraud_model.predict_proba(features)[0][1]
@@ -110,21 +108,21 @@ async def chat(request: ChatRequest):
         calc_data = compare_transfers(amount)
         
         prompt = f"""
-You are a helpful remittance assistant for Bangladesh.
+You are FundGuide AI, a helpful remittance assistant for Bangladesh.
 The user sent this exact message: "{request.message}"
 
 Here is the exact math and data calculated by our Python engine:
 {json.dumps(calc_data, indent=2)}
 
-CRITICAL LANGUAGE INSTRUCTION:
-- If the user's message is in English, reply in English.
-- If the user's message uses Bengali script (বাংলা), reply in Bengali script.
-- If the user's message uses Banglish (e.g., "Ami 500 dollar pathabo"), you MUST reply in Banglish.
+CRITICAL LANGUAGE RULE (DO NOT IGNORE):
+- If the user's message is in English, you MUST reply in English.
+- If the user's message uses Bengali script (বাংলা), you MUST reply in Bengali script.
+- If the user's message uses Banglish (e.g., "Ami 500 dollar pathabo"), you MUST reply in Banglish. DO NOT reply in English if the user uses Banglish.
 
-CRITICAL CONTENT INSTRUCTIONS:
+CRITICAL CONTENT RULES:
 1. Explain WHY the recommended provider is best using the data.
 2. You MUST mention the "family_impact" (how much more money the family gets).
-3. Mention the delivery speed of the recommended provider (e.g., "Wise takes 1-2 days").
+3. Mention the delivery speed of the recommended provider.
 4. Do not invent any numbers. Only use the numbers provided above.
 """
     else:
@@ -132,13 +130,17 @@ CRITICAL CONTENT INSTRUCTIONS:
 You are FundGuide AI, a helpful and polite financial assistant for Bangladesh.
 You ONLY answer questions related to money transfers, remittances, exchange rates, and financial decisions. 
 If the user asks about anything else, politely redirect them back to remittance advice.
-User message: "{request.message}"
+User Message: "{request.message}"
+
+CRITICAL LANGUAGE RULE:
+If the user uses Banglish, reply in Banglish. If they use Bangla script, reply in Bangla script. If they use English, reply in English.
 """
 
     try:
+        # Increased timeout to 25 seconds to allow the AI to generate Bangla text even on a slow server
         response = await asyncio.wait_for(
             asyncio.to_thread(client.models.generate_content, model='gemini-3.5-flash', contents=prompt),
-            timeout=8.0
+            timeout=25.0
         )
         ai_text = response.text
     except Exception:
