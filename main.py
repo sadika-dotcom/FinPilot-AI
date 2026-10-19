@@ -2,6 +2,7 @@ import os
 import re
 import json
 import asyncio
+import joblib
 from google import genai
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -14,21 +15,41 @@ from calculator import compare_transfers, get_live_usd_to_bdt
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
+# Load the fraud model
+fraud_model = joblib.load("fraud_model.pkl")
+
 app = FastAPI(title="RemitWise AI API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 class ChatRequest(BaseModel):
     message: str
 
-# Notice we added 'data' here so the frontend can build the UI
 class ChatResponse(BaseModel):
     response: str
     data: Optional[dict] = None 
     action: Optional[dict] = None
 
+class FraudRequest(BaseModel):
+    amount: float
+    oldbalanceOrg: float
+    newbalanceOrig: float
+    oldbalanceDest: float
+    newbalanceDest: float
+
 @app.get("/")
 def home():
     return {"status": "Agent is running"}
+
+@app.post("/check-fraud")
+def check_fraud(request: FraudRequest):
+    features = [[1, request.amount, request.oldbalanceOrg, request.newbalanceOrig, request.oldbalanceDest, request.newbalanceDest]]
+    prediction = fraud_model.predict(features)[0]
+    probability = fraud_model.predict_proba(features)[0][1] 
+    
+    if prediction == 1 or probability > 0.15:
+        return {"status": "FRAUD ALERT", "is_fraud": True, "risk_score": round(probability * 100, 2), "message": "⚠️ This transaction pattern looks highly suspicious. Please verify the recipient."}
+    
+    return {"status": "Safe", "is_fraud": False, "risk_score": round(probability * 100, 2), "message": "✅ Transaction looks safe."}
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -47,7 +68,33 @@ async def chat(request: ChatRequest):
             action={"type": "set_alert", "label": f"🔔 Set Alert for {rate_val}", "target_rate": rate_val}
         )
 
-    # 3. Handle Transfer Calculations & General Chat
+    # 3. Handle Fraud / Safety Checks (NEW)
+    if "safe" in message_lower or "fraud" in message_lower or "scam" in message_lower:
+        # We look for two numbers: the amount being sent, and the account balance
+        numbers = re.findall(r"\d+", message_lower)
+        if len(numbers) >= 2:
+            amount = float(numbers[0])
+            balance = float(numbers[1])
+            
+            # Simulate the fraud check using the ML model
+            features = [[1, amount, balance, balance - amount, 0, amount]]
+            prediction = fraud_model.predict(features)[0]
+            prob = fraud_model.predict_proba(features)[0][1]
+            
+            if prediction == 1 or prob > 0.15:
+                return ChatResponse(
+                    response=f"🚨 **WARNING: High Fraud Risk ({round(prob*100, 1)}%)**\n\nOur PaySim Machine Learning model has flagged this pattern. Sending **${amount:,.0f}** from a balance of **${balance:,.0f}** drains the account completely, which matches known fraud signatures. Please double-check the recipient before sending.",
+                    data={"is_fraud": True, "risk_score": round(prob*100, 2)}
+                )
+            else:
+                return ChatResponse(
+                    response=f"✅ **Transaction looks safe.** Our ML model checked a transfer of ${amount:,.0f} from a balance of ${balance:,.0f} and found no suspicious patterns.",
+                    data={"is_fraud": False, "risk_score": round(prob*100, 2)}
+                )
+        else:
+            return ChatResponse(response="I can check that for you. Please tell me the amount you want to send and your current balance. For example: 'Is it safe to send 5000 from a balance of 5000?'")
+
+    # 4. Handle Transfer Calculations & General Chat
     match_amount = re.search(r"\$?\s*(\d+(?:,\d{3})*(?:\.\d+)?)", message_lower)
     calc_data = None
 
@@ -70,7 +117,6 @@ CRITICAL INSTRUCTIONS:
 5. Do not invent any numbers. Only use the numbers provided above.
 """
     else:
-        # General conversational AI
         prompt = f"""
 You are RemitWise AI, a helpful and polite financial assistant for Bangladesh.
 You ONLY answer questions related to money transfers, remittances, exchange rates, and financial decisions. 
@@ -85,11 +131,9 @@ User message: "{request.message}"
         )
         ai_text = response.text
     except Exception:
-        # Graceful fallback if AI is slow
         if calc_data:
             ai_text = f"Math Results: {calc_data['recommended']} is best. {calc_data['family_impact']}"
         else:
             ai_text = "The AI is currently busy, but our math engine is still running."
 
-    # Return both the AI's text and the structured data
     return ChatResponse(response=ai_text, data=calc_data, action=None)
