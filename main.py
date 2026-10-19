@@ -55,6 +55,13 @@ def check_fraud(request: FraudRequest):
 async def chat(request: ChatRequest):
     message_lower = request.message.lower()
 
+    # 0. Handle general rate questions (NEW)
+    if "rate" in message_lower or "conversion" in message_lower:
+        rate_info = get_live_usd_to_bdt()
+        return ChatResponse(
+            response=f"The current live exchange rate is **{rate_info['rate']:.2f} BDT** per 1 USD. (Status: {rate_info['status']} at {rate_info['timestamp']})."
+        )
+
     # 1. Handle Troubleshooting
     if "delay" in message_lower or "not received" in message_lower:
         return ChatResponse(response="I can help with that. What is your transaction ID? (e.g., TRX-123)")
@@ -68,15 +75,13 @@ async def chat(request: ChatRequest):
             action={"type": "set_alert", "label": f"🔔 Set Alert for {rate_val}", "target_rate": rate_val}
         )
 
-    # 3. Handle Fraud / Safety Checks (NEW)
+    # 3. Handle Fraud / Safety Checks
     if "safe" in message_lower or "fraud" in message_lower or "scam" in message_lower:
-        # We look for two numbers: the amount being sent, and the account balance
         numbers = re.findall(r"\d+", message_lower)
         if len(numbers) >= 2:
             amount = float(numbers[0])
             balance = float(numbers[1])
             
-            # Simulate the fraud check using the ML model
             features = [[1, amount, balance, balance - amount, 0, amount]]
             prediction = fraud_model.predict(features)[0]
             prob = fraud_model.predict_proba(features)[0][1]
