@@ -264,8 +264,8 @@ The exact file list may change. Add the frontend folder here if the frontend sou
 ## Team
 
 - **Sadika Sharif** — Team Lead & AI Engineer
-- **[Tazryanbinte Kashem]** — UI/UX Designer & Security Lead
-- **[Ariba Siddiqua]** — Product Strategist & Lead Presenter
+- **Tazryanbinte Kashem** — UI/UX Designer & Security Lead
+- **Ariba Siddiqua** — Product Strategist & Lead Presenter
 
 
 ---
