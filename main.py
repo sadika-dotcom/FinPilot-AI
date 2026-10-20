@@ -55,11 +55,12 @@ def check_fraud(request: FraudRequest):
 async def chat(request: ChatRequest):
     message_lower = request.message.lower()
 
-    # 0. Handle general rate questions
-    if "rate" in message_lower or "conversion" in message_lower:
+    # 0. Handle general rate questions (Fixed to catch more phrases)
+    if "rate" in message_lower or "exchange" in message_lower or "conversion" in message_lower:
         rate_info = get_live_usd_to_bdt()
         return ChatResponse(
-            response=f"The current live exchange rate is **{rate_info['rate']:.2f} BDT** per 1 USD. (Status: {rate_info['status']} at {rate_info['timestamp']})."
+            response=f"The current live exchange rate is **{rate_info['rate']:.2f} BDT** per 1 USD. (Status: {rate_info['status']} at {rate_info['timestamp']}).",
+            data={"rate_info": rate_info}
         )
 
     # 1. Handle Troubleshooting
@@ -131,13 +132,10 @@ You are FundGuide AI, a helpful and polite financial assistant for Bangladesh.
 You ONLY answer questions related to money transfers, remittances, exchange rates, and financial decisions. 
 If the user asks about anything else, politely redirect them back to remittance advice.
 User Message: "{request.message}"
-
-CRITICAL LANGUAGE RULE:
-If the user uses Banglish, reply in Banglish. If they use Bangla script, reply in Bangla script. If they use English, reply in English.
 """
 
     try:
-        # Increased timeout to 25 seconds to allow the AI to generate Bangla text even on a slow server
+        # Increased timeout to 25 seconds to allow the AI to generate Bangla text
         response = await asyncio.wait_for(
             asyncio.to_thread(client.models.generate_content, model='gemini-3.5-flash', contents=prompt),
             timeout=25.0
