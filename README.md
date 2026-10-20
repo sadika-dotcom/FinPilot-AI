@@ -249,6 +249,12 @@ The exact file list may change. Add the frontend folder here if the frontend sou
 - **No guarantee of security:** The project is a prototype and has not been presented here as independently security-audited or production-certified.
 - **Privacy:** Avoid entering real account credentials or unnecessary sensitive information into a prototype. Confirm frontend, hosting, logging, and retention behaviour before making data-retention claims.
 
+### Currency Agnostic Architecture (Future Scope)
+
+For the scope of this prototype, the system currently uses the **USD to BDT** conversion pair to demonstrate the mathematical engine, targeting the Bangladeshi student diaspora. 
+
+However, the architecture of the Remittance Engine is currency-agnostic. Because the exchange rates are pulled dynamically from an external API and the provider fee logic is separated from the core engine, the system can easily be expanded. In upcoming versions, we plan to support a **multi-currency ecosystem**, including the **Chinese Yuan (CNY)**, GBP, and EUR. By simply swapping the API endpoint and provider assumptions, the same AI agent can assist international students globally.
+
 ## Roadmap
 
 - [ ] Correct and test transaction-type encoding consistently between training and inference.
