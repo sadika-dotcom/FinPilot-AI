@@ -55,8 +55,8 @@ def check_fraud(request: FraudRequest):
 async def chat(request: ChatRequest):
     message_lower = request.message.lower()
 
-    # 0. Handle general rate questions (Fixed to catch more phrases)
-    if "rate" in message_lower or "exchange" in message_lower or "conversion" in message_lower:
+    # 0. Handle general rate questions (Simplified)
+    if "rate" in message_lower:
         rate_info = get_live_usd_to_bdt()
         return ChatResponse(
             response=f"The current live exchange rate is **{rate_info['rate']:.2f} BDT** per 1 USD. (Status: {rate_info['status']} at {rate_info['timestamp']}).",
