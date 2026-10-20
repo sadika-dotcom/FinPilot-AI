@@ -31,7 +31,7 @@
 
 FundGuide AI is designed to help Bangladeshi students and their families better understand cross-border money transfers. Remittance costs can be difficult to compare because fees, exchange rates, and payout conditions differ between services. Users may also want a plain-language explanation of transaction patterns that deserve extra scrutiny.
 
-FundGuide brings these tasks into one conversational interface. It estimates recipient payouts using a Python calculation engine, retrieves a USD-to-BDT reference exchange rate, provides a model-based transaction-risk score, and uses Google Gemini to explain results in English, Bangla, or Banglish.
+FundGuide brings these tasks into one conversational interface. It estimates recipient payouts using a Python calculation engine, retrieves a reference exchange rate, provides a model-based transaction-risk score, and uses Google Gemini to explain results in English, Bangla, or Banglish.
 
 ## The Problem
 
